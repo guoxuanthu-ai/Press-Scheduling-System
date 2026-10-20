@@ -83,15 +83,16 @@ describe('角色权限服务端验收', () => {
     await expect(productionClient.user.list()).rejects.toMatchObject({ code: 'FORBIDDEN' });
   });
 
-  it('未登录返回 401，最后一个管理员不能停用或降级', async () => {
+  it('未登录返回 401，管理员不能管理管理员或总经理，最后管理员受保护', async () => {
     const anonymous = appRouter.createCaller({ store, user: null });
     await expect(anonymous.task.list()).rejects.toMatchObject({ code: 'UNAUTHORIZED' });
-    await expect(adminClient.user.update({ id: 1, active: false })).rejects.toMatchObject({ code: 'CONFLICT' });
-    await expect(adminClient.user.update({ id: 1, role: 'market' })).rejects.toMatchObject({ code: 'CONFLICT' });
-    const second = await adminClient.user.create({ username: 'admin_two', name: '第二管理员', role: 'admin', password: 'StrongPass123' });
-    expect(second).not.toHaveProperty('passwordHash');
-    await adminClient.user.update({ id: second.id, active: false });
-    expect((await adminClient.user.list()).find((user) => user.id === second.id)?.active).toBe(false);
+    await expect(adminClient.user.update({ id: 1, active: false })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(adminClient.user.update({ id: 4, name: '越权编辑' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(adminClient.user.create({ username: 'admin_two', name: '第二管理员', role: 'admin', password: 'StrongPass123' })).rejects.toMatchObject({ code: 'FORBIDDEN' });
+    await expect(generalManagerClient.user.update({ id: 1, active: false })).rejects.toMatchObject({ code: 'CONFLICT' });
+    const marketAccount = await adminClient.user.create({ username: 'market_new', name: '新市场', role: 'market', password: 'StrongPass123' });
+    await adminClient.user.update({ id: marketAccount.id, name: '新市场改', role: 'production' });
+    expect((await adminClient.user.list()).find((user) => user.id === marketAccount.id)).toMatchObject({ name: '新市场改', role: 'production' });
   });
 });
 

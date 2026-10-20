@@ -1,11 +1,16 @@
 import { TRPCError } from '@trpc/server';
 import { z } from 'zod';
-import { ROLES } from '../contracts/auth';
+import { ROLES, type Role } from '../contracts/auth';
 import { hashPassword } from '../db/authUtils';
-import { protectedProcedure, router } from './trpc';
+import { protectedProcedure, router, type SessionUser } from './trpc';
 
 const passwordSchema = z.string().min(8, '密码至少 8 位').max(72, '密码最长 72 位');
 const usernameSchema = z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9_]{2,29}$/, '用户名需以字母开头，仅含字母、数字、下划线');
+
+function canManageAccount(actor: SessionUser, targetRole: Role): boolean {
+  if (actor.role === 'general_manager') return true;
+  return actor.role === 'admin' && (targetRole === 'market' || targetRole === 'production');
+}
 
 export const userRouter = router({
   list: protectedProcedure.query(async ({ ctx }) => (await ctx.store.read()).users.map((user) => ({
@@ -23,8 +28,8 @@ export const userRouter = router({
     role: z.enum(ROLES),
     password: passwordSchema,
   })).mutation(async ({ ctx, input }) => ctx.store.mutate((data) => {
-    if (input.role === 'general_manager' && ctx.user.role !== 'general_manager') {
-      throw new TRPCError({ code: 'FORBIDDEN', message: '只有总经理可以授予总经理角色' });
+    if (!canManageAccount(ctx.user, input.role)) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: '管理员只能添加市场或生产账户' });
     }
     if (data.users.some((user) => user.username === input.username)) {
       throw new TRPCError({ code: 'CONFLICT', message: '用户名已存在' });
@@ -51,12 +56,12 @@ export const userRouter = router({
     active: z.boolean().optional(),
     password: passwordSchema.optional(),
   }).refine((input) => input.name !== undefined || input.role !== undefined || input.active !== undefined || input.password !== undefined, '没有需要保存的变更')).mutation(async ({ ctx, input }) => ctx.store.mutate((data) => {
-    if (input.role === 'general_manager' && ctx.user.role !== 'general_manager') {
-      throw new TRPCError({ code: 'FORBIDDEN', message: '只有总经理可以授予总经理角色' });
-    }
     const user = data.users.find((item) => item.id === input.id);
     if (!user) throw new TRPCError({ code: 'NOT_FOUND', message: '账户不存在' });
     const nextRole = input.role ?? user.role;
+    if (!canManageAccount(ctx.user, user.role) || !canManageAccount(ctx.user, nextRole)) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: '管理员只能编辑市场或生产账户' });
+    }
     const nextActive = input.active ?? user.active;
     const removesAdmin = user.role === 'admin' && user.active && (nextRole !== 'admin' || !nextActive);
     if (removesAdmin && !data.users.some((item) => item.id !== user.id && item.role === 'admin' && item.active)) {
