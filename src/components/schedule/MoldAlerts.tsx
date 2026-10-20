@@ -1,0 +1,10 @@
+import { CalendarClock } from 'lucide-react';
+import type { MoldReminder } from '../../../contracts/schedule';
+import { cn, formatHours } from '../../lib/utils';
+import { Badge } from '../StatusBadge';
+import { EmptyState } from '../ui';
+
+export function MoldAlerts({ reminders }: { reminders: MoldReminder[] }) {
+  if (reminders.length === 0) return <EmptyState title="暂无在制模具提醒" description="当任务使用在制中的模具时，这里会显示最晚开模下单日和到厂日。" />;
+  return <div className="overflow-x-auto rounded-xl border border-slate-200"><table className="w-full min-w-[900px] text-left text-sm"><thead className="bg-slate-50 text-xs text-slate-500"><tr><th className="p-3 font-medium">模具 / 关联工序</th><th className="p-3 font-medium">开模周期</th><th className="p-3 font-medium">最晚下单日</th><th className="p-3 font-medium">预计可排产日</th><th className="p-3 font-medium">剩余时间</th><th className="p-3 font-medium">下单状态</th></tr></thead><tbody>{reminders.map((item) => <tr key={`${item.moldId}-${item.taskId}-${item.stepId}`} className={cn('border-t border-slate-100', item.overdue && 'bg-red-50/60')}><td className="p-3"><p className="font-semibold text-slate-800">{item.moldCode}</p><p className="mt-1 text-xs text-slate-500">{item.productName} · {item.stepName}</p></td><td className="p-3 text-slate-600">{item.leadTimeDays} 天</td><td className={cn('p-3 font-semibold', item.overdue ? 'text-red-600' : 'text-slate-700')}><span className="flex items-center gap-1.5"><CalendarClock size={15} />{item.latestOrderDate}</span></td><td className="p-3 text-slate-600">{item.arrivalDate}</td><td className="p-3"><Badge color={item.overdue ? 'red' : item.remainingDays <= 2 ? 'yellow' : 'green'}>{item.overdue ? `已逾期 ${Math.abs(item.remainingDays)} 天` : item.remainingDays === 0 ? '今天必须下单' : `剩余 ${item.remainingDays} 天`}</Badge></td><td className="p-3">{item.ordered ? <Badge color="blue">已下单 {item.orderDate}</Badge> : <Badge color={item.overdue ? 'red' : 'yellow'}>待下单</Badge>}<p className="mt-1 text-xs text-slate-400">提前 {formatHours(item.leadTimeDays * 24).replace('h', '')}h 周期</p></td></tr>)}</tbody></table></div>;
+}
