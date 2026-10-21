@@ -249,7 +249,7 @@ function importTasks(workbook: XLSX.WorkBook, data: StoreData): ExcelSummary {
     if (!pressingGroup.length) throw new Error(`第 ${index + 2} 行：任务“${taskKey}”缺少压制工序`);
     const coreCount = pressingGroup.filter(({ row: item, index: itemIndex }) => parseStepType(textCell(item, '工序类型', itemIndex), itemIndex) === 'core').length;
     const finalCount = pressingGroup.length - coreCount;
-    if (coreCount < 1 || finalCount !== 1) throw new Error(`第 ${index + 2} 行：任务“${taskKey}”必须包含至少一个预压Core和一个合压工序`);
+    if (finalCount !== 1) throw new Error(`第 ${index + 2} 行：任务“${taskKey}”必须包含一个合压工序；预压Core可为 0 个`);
     const timestamp = new Date().toISOString();
     const taskStatus = parseLabeled<TaskStatus>(textCell(row, '状态', index, false) || (existing ? taskStatusLabels[existing.status] : '待排产'), taskStatusLabels, '状态', index);
     const task: SampleTask = existingSource ?? {

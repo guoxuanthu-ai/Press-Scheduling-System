@@ -66,6 +66,17 @@ describe('PRD M1 最小可执行验收', () => {
     expect((await client.task.get({ id: task.id })).postSteps.map((step) => step.processName)).toEqual(['热处理', '电镀']);
   });
 
+  it('任务可不含预压 Core，直接创建合压工序', async () => {
+    const molds = await client.mold.list();
+    const task = await client.task.create({
+      productName: 'DIRECT-FINAL-01', techRoute: 'amorphous_180', deadline: addDays(BASE, 5), priority: 'P1', quantity: null, remark: '',
+      pressingSteps: [{ stepType: 'final', name: '合压', moldId: molds[2].id, requiredHours: 4 }],
+      postSteps: [],
+    });
+    expect(task.pressingSteps).toHaveLength(1);
+    expect(task.pressingSteps[0].stepType).toBe('final');
+  });
+
   it('验收 4、5：输出每日×压机工序矩阵，多 Core 并行、合压依赖与后工序接龙正确', async () => {
     await isolateOperations();
     const [coreA, coreB, final] = await Promise.all([createMold('A', [1]), createMold('B', [2]), createMold('F', [3])]);

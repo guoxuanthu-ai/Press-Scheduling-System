@@ -20,10 +20,8 @@ const postStepShape = {
 };
 
 function pressingArray<T extends z.ZodTypeAny>(schema: T) {
-  return z.array(schema).min(2, '至少需要一个预压 core 和一个合压工序').superRefine((steps, context) => {
-    const cores = steps.filter((step) => step.stepType === 'core').length;
+  return z.array(schema).min(1, '至少需要一个合压工序').superRefine((steps, context) => {
     const finals = steps.filter((step) => step.stepType === 'final').length;
-    if (cores < 1) context.addIssue({ code: 'custom', message: '至少添加一个预压 core' });
     if (finals !== 1) context.addIssue({ code: 'custom', message: '必须且只能有一个合压工序' });
   });
 }

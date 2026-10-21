@@ -163,4 +163,16 @@ describe('排产引擎核心规则', () => {
     expect(overtime.workingDays['2026-10-10']).toBe(true);
     expect(overtime.workingDays['2026-10-11']).toBe(false);
   });
+
+  it('允许没有预压 Core 的任务直接合压', () => {
+    const result = runScheduling({
+      baseDate: BASE,
+      presses: standardPresses,
+      molds: standardMolds,
+      tasks: [task(1, [step(13, 3, { stepType: 'final', name: '合压', requiredHours: 4 })])],
+    });
+    const assignment = result.assignments.find((item) => item.stepId === 13);
+    expect(assignment).toMatchObject({ date: BASE, pressId: 3, hours: 4 });
+    expect(result.taskPlans[0].estimatedDelivery).toBe(BASE);
+  });
 });

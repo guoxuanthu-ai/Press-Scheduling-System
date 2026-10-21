@@ -99,6 +99,17 @@ describe('Excel 导入导出验收', () => {
     expect(createdTask.postSteps.length).toBeGreaterThan(0);
   });
 
+  it('Excel 可导入不含预压 Core 的直接合压任务', async () => {
+    const workbook = await download('tasks');
+    workbook.Sheets['任务'] = XLSX.utils.json_to_sheet([{ 任务ID: 'DIRECT-1', 产品名称: 'Excel 直接合压', 技术路线: '180℃ 热压非晶', 交期: '2026-12-05', 优先级: 'P1 高', 数量: 1, 状态: '待排产', 备注: '' }]);
+    workbook.Sheets['压制工序'] = XLSX.utils.json_to_sheet([{ 任务ID: 'DIRECT-1', 工序ID: '', 工序类型: '合压', 工序名称: '合压', 模具编号: 'M-FINAL-01', 所需工时: 3, 已完成工时: 0, 工序状态: '待排', 顺序: 1 }]);
+    workbook.Sheets['后工序'] = XLSX.utils.json_to_sheet([]);
+    const response = await upload('tasks', workbook);
+    expect(response.status).toBe(200);
+    const task = (await store.read()).tasks.find((item) => item.productName === 'Excel 直接合压')!;
+    expect(task.pressingSteps.map((step) => step.stepType)).toEqual(['final']);
+  });
+
   it('删除全部任务后可用导出的工作簿恢复', async () => {
     const workbook = await download('tasks');
     await store.mutate((data) => { data.tasks = []; });
